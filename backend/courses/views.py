@@ -9,17 +9,34 @@ from .serializers import (
 )
 from accounts.permissions import IsAdminOrReadOnly, IsTechspireAdmin
 
+import logging
+logger = logging.getLogger(__name__)
+
+def ensure_courses_seeded():
+    """Ensure database has the 9 flagship curricula seeded."""
+    try:
+        if Course.objects.filter(is_published=True).count() == 0:
+            from django.core.management import call_command
+            logger.info("Empty course table detected. Triggering seed_techspire command...")
+            call_command('seed_techspire')
+    except Exception as e:
+        logger.error(f"Error while auto-seeding courses: {e}")
+
 class CategoryListView(generics.ListAPIView):
     permission_classes = (permissions.AllowAny,)
-    queryset = Category.objects.all()
     serializer_class = CategorySerializer
     pagination_class = None
+
+    def get_queryset(self):
+        ensure_courses_seeded()
+        return Category.objects.all()
 
 class CourseListView(generics.ListAPIView):
     permission_classes = (permissions.AllowAny,)
     serializer_class = CourseListSerializer
 
     def get_queryset(self):
+        ensure_courses_seeded()
         queryset = Course.objects.filter(is_published=True).select_related('category').prefetch_related('modules__chapters')
         
         search = self.request.query_params.get('search', '').strip()

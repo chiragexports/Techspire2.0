@@ -30,9 +30,10 @@ api_patterns = [
 ]
 
 urlpatterns = [
-    path('', api_root, name='root'),
-    path('api/', include(api_patterns)),
     path('api/backend/', include(api_patterns)),
+    path('api/', include(api_patterns)),
+    path('backend/', include(api_patterns)),
+    path('', include(api_patterns)),
 ]
 
 # Admin enabled in DEBUG or when explicitly configured
