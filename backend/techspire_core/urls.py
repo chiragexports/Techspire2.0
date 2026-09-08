@@ -1,3 +1,4 @@
+import os
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
@@ -16,18 +17,27 @@ def api_root(request):
         'documentation': '/api/docs/'
     })
 
+# Unified API endpoints
+api_patterns = [
+    path('', api_root, name='api_root'),
+    path('auth/', include('accounts.urls')),
+    path('', include('courses.urls')),
+    path('', include('progress.urls')),
+    path('', include('assessments.urls')),
+    path('', include('certificates.urls')),
+    path('', include('analytics.urls')),
+    path('payments/', include('payments.urls')),
+]
+
 urlpatterns = [
     path('', api_root, name='root'),
-    path('api/', api_root, name='api_root'),
-    path('admin/', admin.site.urls),
-    path('api/auth/', include('accounts.urls')),
-    path('api/', include('courses.urls')),
-    path('api/', include('progress.urls')),
-    path('api/', include('assessments.urls')),
-    path('api/', include('certificates.urls')),
-    path('api/', include('analytics.urls')),
-    path('api/payments/', include('payments.urls')),
+    path('api/', include(api_patterns)),
+    path('api/backend/', include(api_patterns)),
 ]
+
+# Admin enabled in DEBUG or when explicitly configured
+if settings.DEBUG or os.getenv('ENABLE_DJANGO_ADMIN', 'False') == 'True':
+    urlpatterns.append(path('admin/', admin.site.urls))
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
