@@ -59,21 +59,39 @@ class ApiClient {
     }
 
     if (!response.ok) {
-      let errorMessage = `HTTP Error ${response.status}: ${response.statusText}`;
+      let errorMessage = `Server error (${response.status})`;
       try {
         const errorData = await response.json();
-        if (errorData.error) errorMessage = errorData.error;
-        else if (errorData.detail) errorMessage = errorData.detail;
-        else if (errorData.message) errorMessage = errorData.message;
-        else if (typeof errorData === 'object') {
-          const firstKey = Object.keys(errorData)[0];
-          if (firstKey) {
+        if (errorData.error) {
+          errorMessage = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error);
+        } else if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (typeof errorData === 'object' && errorData !== null) {
+          const keys = Object.keys(errorData);
+          if (keys.length > 0) {
+            const firstKey = keys[0];
             const val = errorData[firstKey];
-            errorMessage = Array.isArray(val) ? `${firstKey}: ${val[0]}` : `${firstKey}: ${val}`;
+            const cleanVal = Array.isArray(val) ? val[0] : String(val);
+            if (firstKey === 'non_field_errors' || firstKey === 'detail') {
+              errorMessage = cleanVal;
+            } else {
+              const formattedKey = firstKey.charAt(0).toUpperCase() + firstKey.slice(1).replace(/_/g, ' ');
+              errorMessage = `${formattedKey}: ${cleanVal}`;
+            }
           }
         }
       } catch {
-        // Ignored, use statusText
+        if (response.status === 500) {
+          errorMessage = 'Server is currently processing your request. Please check your credentials or try again.';
+        } else if (response.status === 404) {
+          errorMessage = 'The requested resource was not found.';
+        } else if (response.status === 403) {
+          errorMessage = 'Access forbidden. Please sign in with appropriate permissions.';
+        } else if (response.status === 401) {
+          errorMessage = 'Invalid email or password.';
+        }
       }
       throw new Error(errorMessage);
     }
