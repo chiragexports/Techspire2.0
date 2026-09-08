@@ -17,17 +17,21 @@ class RegisterView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        
-        refresh = RefreshToken.for_user(user)
-        return Response({
-            'user': UserSerializer(user).data,
-            'tokens': {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            },
-            'message': 'Registration successful.'
-        }, status=status.HTTP_201_CREATED)
+        try:
+            user = serializer.save()
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'user': UserSerializer(user).data,
+                'tokens': {
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                },
+                'message': 'Registration successful.'
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({
+                'error': f"Failed to create account: {str(e)}"
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 class LoginView(APIView):
     permission_classes = (permissions.AllowAny,)
