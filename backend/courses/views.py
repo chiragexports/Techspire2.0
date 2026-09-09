@@ -10,17 +10,37 @@ from .serializers import (
 from accounts.permissions import IsAdminOrReadOnly, IsTechspireAdmin
 
 import logging
+from django.db import connection
+from django.core.management import call_command
+
 logger = logging.getLogger(__name__)
 
-def ensure_courses_seeded():
-    """Ensure database has the 9 flagship curricula seeded."""
+SLUG_ALIASES = {
+    'sql-databases': 'master-sql-relational-database-architecture',
+    'data-structures': 'data-structures-algorithms-depth',
+    'oop-design-patterns': 'object-oriented-design-patterns',
+    'ai-fundamentals': 'artificial-intelligence-modern-llm-engineering',
+    'machine-learning': 'machine-learning-engineering-mlops-production',
+    'operating-systems': 'operating-systems-low-level-architecture',
+}
+
+def resolve_course_slug(slug: str) -> str:
+    """Resolve a given slug to its canonical version if aliased."""
+    return SLUG_ALIASES.get(slug, slug)
+
+def ensure_database_ready():
+    """Ensure database tables are migrated and the 9 flagship curricula are seeded."""
     try:
+        table_names = connection.introspection.table_names()
+        if 'courses_course' not in table_names or 'accounts_user' not in table_names:
+            logger.info("Core database tables missing. Running Django migrations...")
+            call_command('migrate', interactive=False)
+
         if Course.objects.filter(is_published=True).count() == 0:
-            from django.core.management import call_command
-            logger.info("Empty course table detected. Triggering seed_techspire command...")
+            logger.info("Empty course catalog detected. Triggering seed_techspire...")
             call_command('seed_techspire')
     except Exception as e:
-        logger.error(f"Error while auto-seeding courses: {e}")
+        logger.error(f"Error while verifying/initializing database: {e}", exc_info=True)
 
 class CategoryListView(generics.ListAPIView):
     permission_classes = (permissions.AllowAny,)
@@ -28,7 +48,7 @@ class CategoryListView(generics.ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        ensure_courses_seeded()
+        ensure_database_ready()
         return Category.objects.all()
 
 class CourseListView(generics.ListAPIView):
@@ -36,7 +56,7 @@ class CourseListView(generics.ListAPIView):
     serializer_class = CourseListSerializer
 
     def get_queryset(self):
-        ensure_courses_seeded()
+        ensure_database_ready()
         queryset = Course.objects.filter(is_published=True).select_related('category').prefetch_related('modules__chapters')
         
         search = self.request.query_params.get('search', '').strip()
@@ -75,18 +95,54 @@ class CourseDetailView(generics.RetrieveAPIView):
     lookup_field = 'slug'
     queryset = Course.objects.filter(is_published=True)
 
+    def get_object(self):
+        ensure_database_ready()
+        raw_slug = self.kwargs.get('slug', '')
+        resolved_slug = resolve_course_slug(raw_slug)
+
+        # Check resolved slug or raw slug or reverse alias
+        course = Course.objects.filter(
+            Q(slug=resolved_slug) | Q(slug=raw_slug),
+            is_published=True
+        ).first()
+
+        if not course:
+            # Check if any course slug ends with or matches
+            for alias, canonical in SLUG_ALIASES.items():
+                if raw_slug in (alias, canonical):
+                    course = Course.objects.filter(Q(slug=canonical) | Q(slug=alias), is_published=True).first()
+                    if course:
+                        break
+
+        if not course:
+            from rest_framework.exceptions import NotFound
+            raise NotFound(detail=f"Course '{raw_slug}' not found.")
+
+        self.check_object_permissions(self.request, course)
+        return course
+
 class ChapterDetailView(APIView):
     permission_classes = (permissions.AllowAny,)
 
     def get(self, request, course_slug, chapter_slug):
-        try:
-            course = Course.objects.get(slug=course_slug, is_published=True)
-            chapter = Chapter.objects.select_related('module__course').get(
-                module__course=course,
-                slug=chapter_slug
-            )
-        except (Course.DoesNotExist, Chapter.DoesNotExist):
-            return Response({'error': 'Chapter or Course not found.'}, status=status.HTTP_404_NOT_FOUND)
+        ensure_database_ready()
+        resolved_course_slug = resolve_course_slug(course_slug)
+
+        course = Course.objects.filter(
+            Q(slug=resolved_course_slug) | Q(slug=course_slug),
+            is_published=True
+        ).first()
+
+        if not course:
+            return Response({'error': 'Course not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        chapter = Chapter.objects.select_related('module__course').filter(
+            module__course=course,
+            slug=chapter_slug
+        ).first()
+
+        if not chapter:
+            return Response({'error': 'Chapter not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         # Access Control Gating:
         # If lesson is free preview or entire course is free, allow.

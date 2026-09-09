@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+# Ensure backend root directory is in sys.path
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.utils.text import slugify
@@ -8,6 +16,18 @@ from certificates.models import Certificate
 from courses_content_data import COURSES_DATA
 
 User = get_user_model()
+
+COURSE_PRICING = {
+    'python-programming': {'price': 149900, 'original': 199900},
+    'c-programming': {'price': 119900, 'original': 159900},
+    'cpp-programming': {'price': 149900, 'original': 199900},
+    'master-sql-relational-database-architecture': {'price': 109900, 'original': 149900},
+    'data-structures-algorithms-depth': {'price': 149900, 'original': 199900},
+    'object-oriented-design-patterns': {'price': 119900, 'original': 159900},
+    'artificial-intelligence-modern-llm-engineering': {'price': 149900, 'original': 199900},
+    'machine-learning-engineering-mlops-production': {'price': 199900, 'original': 249900},
+    'operating-systems-low-level-architecture': {'price': 149900, 'original': 199900},
+}
 
 class Command(BaseCommand):
     help = 'Populates the database with 9 complete, high-quality technical courses, users, and assessments'
@@ -61,8 +81,11 @@ class Command(BaseCommand):
                 }
             )
 
+            slug = course_data['slug']
+            pricing = COURSE_PRICING.get(slug, {'price': 149900, 'original': 199900})
+
             course, _ = Course.objects.update_or_create(
-                slug=course_data['slug'],
+                slug=slug,
                 defaults={
                     'title': course_data['title'],
                     'tagline': course_data.get('tagline', course_data.get('description', '')[:200]),
@@ -75,6 +98,11 @@ class Command(BaseCommand):
                     'order': course_data.get('order', 1),
                     'prerequisites': course_data.get('prerequisites', []),
                     'learning_outcomes': course_data.get('learning_outcomes', []),
+                    'price_in_paise': pricing['price'],
+                    'original_price_in_paise': pricing['original'],
+                    'discount_price_in_paise': pricing['price'],
+                    'currency': 'INR',
+                    'is_free': False,
                     'is_published': True
                 }
             )
@@ -148,15 +176,22 @@ class Command(BaseCommand):
 
             self.stdout.write(self.style.SUCCESS(f"Loaded Course: {course.title} ({course.total_chapters} chapters)"))
 
+        # Ensure only the 9 flagship curricula are active in the published catalog
+        canonical_slugs = set(COURSE_PRICING.keys())
+        Course.objects.exclude(slug__in=canonical_slugs).update(is_published=False)
+
         # Seed initial demo enrollment and progress for demo student
-        py_course = Course.objects.get(slug='python-programming')
-        enrollment, _ = Enrollment.objects.get_or_create(user=student_user, course=py_course)
-        
-        # Mark first 3 chapters of Python complete
-        py_chapters = Chapter.objects.filter(module__course=py_course).order_by('module__order', 'order')[:3]
-        for ch in py_chapters:
-            ChapterProgress.objects.get_or_create(user=student_user, chapter=ch, defaults={'is_completed': True})
-        
-        enrollment.save()
+        try:
+            py_course = Course.objects.get(slug='python-programming')
+            enrollment, _ = Enrollment.objects.get_or_create(user=student_user, course=py_course)
+            
+            # Mark first 3 chapters of Python complete
+            py_chapters = Chapter.objects.filter(module__course=py_course).order_by('module__order', 'order')[:3]
+            for ch in py_chapters:
+                ChapterProgress.objects.get_or_create(user=student_user, chapter=ch, defaults={'is_completed': True})
+            
+            enrollment.save()
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(f"Note on demo enrollment: {e}"))
 
         self.stdout.write(self.style.SUCCESS("Successfully completed Techspire seed!"))

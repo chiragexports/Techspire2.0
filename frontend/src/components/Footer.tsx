@@ -55,17 +55,17 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/courses/sql-databases" className="hover:text-cyan-300 transition-colors">
+                <Link href="/courses/master-sql-relational-database-architecture" className="hover:text-cyan-300 transition-colors">
                   SQL & Database Systems
                 </Link>
               </li>
               <li>
-                <Link href="/courses/data-structures" className="hover:text-cyan-300 transition-colors">
+                <Link href="/courses/data-structures-algorithms-depth" className="hover:text-cyan-300 transition-colors">
                   Data Structures & Algorithms
                 </Link>
               </li>
               <li>
-                <Link href="/courses/operating-systems" className="hover:text-cyan-300 transition-colors">
+                <Link href="/courses/operating-systems-low-level-architecture" className="hover:text-cyan-300 transition-colors">
                   Operating Systems Internals
                 </Link>
               </li>
@@ -80,17 +80,17 @@ export function Footer() {
             </h4>
             <ul className="space-y-2.5 text-xs">
               <li>
-                <Link href="/courses/ai-fundamentals" className="hover:text-indigo-300 transition-colors">
+                <Link href="/courses/artificial-intelligence-modern-llm-engineering" className="hover:text-indigo-300 transition-colors">
                   Artificial Intelligence
                 </Link>
               </li>
               <li>
-                <Link href="/courses/machine-learning" className="hover:text-indigo-300 transition-colors">
+                <Link href="/courses/machine-learning-engineering-mlops-production" className="hover:text-indigo-300 transition-colors">
                   Machine Learning Modeling
                 </Link>
               </li>
               <li>
-                <Link href="/courses/oop-design-patterns" className="hover:text-indigo-300 transition-colors">
+                <Link href="/courses/object-oriented-design-patterns" className="hover:text-indigo-300 transition-colors">
                   OOP & Design Patterns
                 </Link>
               </li>

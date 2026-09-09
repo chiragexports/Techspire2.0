@@ -4,6 +4,7 @@ Django settings for techspire_core project.
 
 from pathlib import Path
 import os
+import sys
 from datetime import timedelta
 import dj_database_url
 from dotenv import load_dotenv
@@ -11,6 +12,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-techspire-super-secret-key-production-ready-2026-v2')
 
@@ -144,7 +147,7 @@ SIMPLE_JWT = {
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
 }
 
-# CORS Configuration
+# CORS & CSRF Configuration
 CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'False') == 'True' if not DEBUG else True
 CORS_ALLOW_CREDENTIALS = True
 
@@ -156,6 +159,7 @@ else:
         'http://localhost:3000',
         'http://127.0.0.1:3000',
         'https://techspire.vercel.app',
+        'https://techspire2-0.vercel.app',
         'https://techspire.io',
         'https://app.techspire.io',
     ]
@@ -165,6 +169,20 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://127.0.0.1(:[0-9]+)?$",
     r"^https://.*\.vercel\.app$",
 ]
+
+csrf_origins_env = os.getenv('CSRF_TRUSTED_ORIGINS', '')
+if csrf_origins_env:
+    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins_env.split(',') if origin.strip()]
+else:
+    CSRF_TRUSTED_ORIGINS = [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'https://*.vercel.app',
+        'https://techspire.vercel.app',
+        'https://techspire2-0.vercel.app',
+        'https://techspire.io',
+        'https://app.techspire.io',
+    ]
 
 # Security Settings for Production
 if not DEBUG:
