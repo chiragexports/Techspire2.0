@@ -21,18 +21,23 @@ def api_root(request):
 api_patterns = [
     path('', api_root, name='api_root'),
     path('auth/', include('accounts.urls')),
+    path('auth', include('accounts.urls')),
     path('', include('courses.urls')),
     path('', include('progress.urls')),
     path('', include('assessments.urls')),
     path('', include('certificates.urls')),
     path('', include('analytics.urls')),
     path('payments/', include('payments.urls')),
+    path('payments', include('payments.urls')),
 ]
 
 urlpatterns = [
     path('api/backend/', include(api_patterns)),
+    path('api/backend', include(api_patterns)),
     path('api/', include(api_patterns)),
+    path('api', include(api_patterns)),
     path('backend/', include(api_patterns)),
+    path('backend', include(api_patterns)),
     path('', include(api_patterns)),
 ]
 
