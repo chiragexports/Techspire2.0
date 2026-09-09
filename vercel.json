@@ -9,6 +9,7 @@
       "entrypoint": "techspire_core/wsgi.py"
     }
   },
+  "trailingSlash": true,
   "rewrites": [
     {
       "source": "/api/backend/:path*",
